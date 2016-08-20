@@ -36,7 +36,7 @@ class Capturer(object):
 			return
 
 	def append(self, message, *arg, **kwarg):
-		if message not in self.queue:
+		if (message not in self.queue) or:
 			self.queue.append(message, *arg, **kwarg)
 
 	def handle_packet(self, packet):
@@ -55,6 +55,7 @@ class Capturer(object):
 					parameter = str(irc.request_command_parameter)
 					trailer = str(irc.request_trailer)
 					prefix = "You"
+					print(packet)
 				else:
 					command = ""
 					trailer = ""
@@ -83,11 +84,14 @@ class Capturer(object):
 		finally:
 			split = trailer.split("|")
 
-			if parameter == "##UminekoOnline":
+			if parameter.lower() == "##uminekoonline":
 				if trailer.startswith("0") and len(split) > 2: # Normal messages.
 					if prefix == "You":
 						self.location_filter = split[5]
 					if split[5] == self.location_filter:
+						if len(split) > 13:
+							for i in range(12, len(split - 1)):
+								split[12] = split[12] + split[i]
 						if split[7] == "1" and split[8] != "None":
 							sfxmessage = "%s played an SFX: %s"%(prefix, split[8])
 							if split[9] == "0":

@@ -99,7 +99,7 @@ class Bot(object):
 		if self.os == "Linux":
 			command('xdotool type --clearmodifiers --delay 20 "%s"' %(text))
 		elif self.os == "Windows":
-			pyautogui.typewrite("%s"%(text))
+			pyautogui.typewrite(str(text))
 
 	def fmaximizeUO(self):
 		if self.os == "Linux":
@@ -123,6 +123,18 @@ class Bot(object):
 		elif self.os == "Windows":
 			pyautogui.press("enter")
 
+	def press_up(self):
+		if self.os == "Linux":
+			command("xdotool key Up")
+		elif self.os == "Windows":
+			pyautogui.press("up")
+
+	def press_down(self):
+		if self.os == "Linux":
+			command("xdotool key Down")
+		elif self.os == "Windows":
+			pyautogui.press("down")
+
 	def process_x(self, x):
 		if self.os == "Linux":
 			sx = int(command("(xrandr --current | grep '*' | uniq | awk '{print $1}' | cut -d 'x' -f1)").value())
@@ -137,6 +149,12 @@ class Bot(object):
 			sy = win32api.GetSystemMetrics(1)
 		return ((y * sy) / 1080)
 
+	def process_text(self, text):
+		ntext = text
+		ntext = ntext.replace("'", "\'")
+		ntext = ntext.replace('"', '\'\'')
+		return ntext
+
 	def sendEnter(self):
 		self.fmaximizeUO()
 		self.move_mouse(self.process_x(352), self.process_y(1023))
@@ -147,9 +165,7 @@ class Bot(object):
 
 	def sendMessage(self, text):
 		self.isSending = True
-		ntext = text
-		ntext = ntext.replace("'", "\'")
-		ntext = ntext.replace('"', '\'\'')
+		ntext = self.process_text(text)
 		self.fmaximizeUO()
 		if self.os == "Linux":
 			self.move_mouse(self.process_x(352), self.process_y(1023))
@@ -160,8 +176,28 @@ class Bot(object):
 		self.press_enter()
 		if self.minimizeUO:
 			self.fminimizeUO()
-		if text in self.send_queue:
-			self.send_queue.remove(text)
+		if [text, "normal"] in self.send_queue:
+			self.send_queue.remove([text, "normal"])
+		self.isSending = False
+
+	def sendMessage_ooc(self, text):
+		self.isSending = True
+		ntext = self.process_text(text)
+		self.fmaximizeUO()
+		if self.os == "Linux":
+			self.move_mouse(self.process_x(1755), self.process_y(41))
+			self.click()
+			self.move_mouse(self.process_x(1759), self.process_y(521))
+			self.click()
+		elif self.os == "Windows":
+			self.click_pos(self.process_x(1755), self.process_y(41))
+			self.click_pos(self.process_x(1759), self.process_y(521))
+		self.write_text(ntext)
+		self.press_enter()
+		if self.minimizeUO:
+			self.fminimizeUO()
+		if [text, "ooc"] in self.send_queue:
+			self.send_queue.remove([text, "ooc"])
 		self.isSending = False
 
 	def screenshot(self):
@@ -228,13 +264,16 @@ class Bot(object):
 					self.capturer.queue = []
 
 				if len(self.send_queue) > 0 and not self.isSending:
-					self.sendMessage(self.send_queue[0])
+					if self.send_queue[0][1].lower() == "normal":
+						self.sendMessage(self.send_queue[0][0])
+					elif self.send_queue[0][1].lower() == "ooc":
+						self.sendMessage_ooc(self.send_queue[0][0])
 
 				if self.last_id[0] not in self.exclusion:
 					self.exclusion.append(self.last_id[0])
 					if len(self.updates[-1].message["entities"]) > 0:
 						if self.updates[-1].message["entities"][0]["type"] == "bot_command":
-							bot_command = self.updates[-1].message.text
+							bot_command = self.updates[-1].message.text.split(" ")[0]
 							if bot_command == "/start":
 								pass
 
@@ -288,8 +327,13 @@ class Bot(object):
 								self.minimizeUO = False
 								self.bot.sendMessage(chat_id=self.last_id[1], text="INFO: UO's window will not be minimized after sending messages.")
 
+							elif bot_command == "/ooc":
+								if len(self.updates[-1].message.text.replace(" ", "")) > 4:
+									self.send_queue.append([self.updates[-1].message.text[5:], "ooc"])
+								else:
+									self.bot.sendMessage(chat_id=self.last_id[1], text="INFO: No text specified.")
 							else:
 								self.bot.sendMessage(chat_id=self.last_id[1], text="INFO: Unknown command '%s'"%(bot_command))
 
 					if self.addToQueue and not self.updates[-1].message.text.startswith("/"):
-						self.send_queue.append(self.updates[-1].message.text)
+						self.send_queue.append([self.updates[-1].message.text, "normal"])

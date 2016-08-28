@@ -23,6 +23,7 @@ pressenter - Send enter key simulation to UO.
 screenshot - Receive a screenshot of UO's window.
 startminimize - Minimize UO's window after sending messages.
 stopminimize - Don't minimize UO's window after sending messages.
+ooc - Send messages to OOC.
 stop - Generic stop. Does nothing.'''
 
 __author__ = "Zumo"

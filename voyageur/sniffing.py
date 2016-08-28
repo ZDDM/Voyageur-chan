@@ -17,6 +17,7 @@ class Capturer(object):
 		self.last_message = ""
 		self.running = True
 		self.diceroll = True
+		self.last_packet = None
 		self.location_filter = location_filter
 		if voyageur.utils.determineOS() == "Linux":
 			self.capturer = pyshark.LiveCapture(interface="enp2s0", display_filter="irc")
@@ -36,55 +37,55 @@ class Capturer(object):
 			return
 
 	def append(self, message, *arg, **kwarg):
-		if (message not in self.queue) or:
+		if (message not in self.queue):
 			self.queue.append(message, *arg, **kwarg)
 
 	def handle_packet(self, packet):
 		assert hasattr(packet, "irc")
+		self.last_packet = packet
 		irc = packet.irc
+		own_packet = False
 		command = ""
 		parameter = ""
 		trailer = ""
 		prefix = ""
-		own_packet = False
 		try:
-			if hasattr(irc, "request"):
-				if not str(irc.request_command).startswith("PONG"):
-					own_packet = True
-					command = str(irc.request_command)
-					parameter = str(irc.request_command_parameter)
-					trailer = str(irc.request_trailer)
+			for field in irc._get_all_field_lines():
+				if "Command parameters" in field:
+					pass
+
+				elif "Request" in field:
 					prefix = "You"
-					print(packet)
+					own_packet = True
+
+				elif("Response") in field:
+					own_packet = False
+
+				elif "Trailer" in field:
+					trailer = field.split("Trailer:")[1][1:-1]
+
+				elif "Parameter" in field:
+					parameter = field.split("Parameter:")[1][1:]
+
+				elif "Command" in field:
+					command = field.split("Command:")[1]
+
+				elif "Prefix" in field:
+					prefix = field.split("Prefix:")[1].split("!")[0]
+
 				else:
-					command = ""
-					trailer = ""
-					prefix = ""
-			elif hasattr(irc, "response"):
-				if not str(irc.response_command).startswith("PING"):
-					command = str(irc.response_command)
-					parameter = str(irc.response_command_parameter)
-					trailer = str(irc.response_trailer)
-					try:
-						prefix = str(irc.response_prefix).split("!")[0]
-					except:
-						prefix = str(irc.response_prefix)
-				else:
-					command = ""
-					parameter = ""
-					trailer = ""
-					prefix = ""
-			else:
-				command = ""
-				parameter = ""
-				trailer = ""
-				prefix = ""
+					raise Exception("Unknown field.\n '%s'"%(field))
 		except AttributeError:
 			pass
+			
+		except:
+			raise
+
 		finally:
 			split = trailer.split("|")
+			print(parameter)
 
-			if parameter.lower() == "##uminekoonline":
+			if "uminekoonline" in parameter.lower():
 				if trailer.startswith("0") and len(split) > 2: # Normal messages.
 					if prefix == "You":
 						self.location_filter = split[5]
@@ -134,12 +135,12 @@ class Capturer(object):
 				else:
 					pass
 
-			elif not parameter.startswith("##"): # Private messages.
+			elif len(parameter): # Private messages.
 				if len(split) > 1 and split[0] == "0":
 					if prefix != "You":
-						self.append("(PM / %s -> You) %s" %(prefix, split[1]))
+						self.append("(PM / %s -> You) %s" %(prefix.replace("\n", ""), split[1]))
 					else:
-						self.append("(PM / You -> %s) %s" %(parameter, split[1]))
+						self.append("(PM / You -> %s) %s" %(parameter.replace("\n", ""), split[1]))
 
 	def run(self):
 		for packet in self.capturer.sniff_continuously():

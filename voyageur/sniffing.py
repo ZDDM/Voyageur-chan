@@ -3,6 +3,7 @@ import telegram
 import pyshark
 import pyautogui
 import threading
+import traceback
 import socket
 import hashlib
 import urllib
@@ -58,7 +59,7 @@ class Capturer(object):
 					prefix = "You"
 					own_packet = True
 
-				elif("Response") in field:
+				elif "Response" in field:
 					own_packet = False
 
 				elif "Trailer" in field:
@@ -76,14 +77,22 @@ class Capturer(object):
 				else:
 					raise Exception("Unknown field.\n '%s'"%(field))
 		except AttributeError:
-			pass
-			
+			traceback.print_exc()
+
+		except IndexError:
+			print("EXCEPTION IndexEror.")
+			print(prefix)
+			print(trailer)
+			print(parameter)
+			print(command)
+			print(prefix)
+			traceback.print_exc()
+
 		except:
 			raise
 
 		finally:
 			split = trailer.split("|")
-			print(parameter)
 
 			if "uminekoonline" in parameter.lower():
 				if trailer.startswith("0") and len(split) > 2: # Normal messages.

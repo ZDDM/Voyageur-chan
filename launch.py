@@ -3,6 +3,7 @@ import voyageur
 import telegram
 import pyshark
 import pyautogui
+import traceback
 import threading
 import socket
 import hashlib
